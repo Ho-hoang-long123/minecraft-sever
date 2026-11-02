@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Server Files & Download PaperMC (API v3)
+      - name: Setup Server Files & Download PaperMC
         run: |
           if (!(Test-Path "server")) { mkdir server }
           if (!(Test-Path "server/plugins")) { mkdir server/plugins }
@@ -26,15 +26,14 @@ jobs:
           cd server
           
           if (!(Test-Path "server.jar")) {
-              Write-Output "Dang lay link va tai PaperMC qua API v3..."
+              Write-Output "Dang tai PaperMC 1.20.4..."
+              # Dùng link direct mirror ổn định, không qua API lằng nhằng
+              Invoke-WebRequest -Uri "https://github.com/ho-hoang-long123/thapcam/raw/main/server.jar" -ErrorAction SilentlyContinue
               
-              # Dùng PowerShell gọi API v3 mới để tự động bốc link file .jar bản 1.20.4 mới nhất
-              $json = Invoke-RestMethod -Uri "https://api.papermc.io/v3/projects/paper/versions/1.20.4/builds/latest"
-              $downloadUrl = $json.downloads."server:default".url
-              $fileName = $json.downloads."server:default".name
-              
-              Write-Output "Link tai: $downloadUrl"
-              Invoke-WebRequest -Uri $downloadUrl -OutFile "server.jar"
+              # Nếu repo chưa có file server.jar sẵn thì tải bản mirror thay thế từ nguồn khác
+              if (!(Test-Path "server.jar")) {
+                  Invoke-WebRequest -Uri "https://api.papermc.v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
+              }
           }
           
           if (!(Test-Path "eula.txt")) {
