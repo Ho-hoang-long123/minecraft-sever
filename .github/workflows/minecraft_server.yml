@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
+    timeout-minutes: 360
 
     steps:
       - name: Checkout Repository
@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Server Files & Download PaperMC
+      - name: Setup Server Files & Download Server
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
@@ -26,8 +26,7 @@ jobs:
           cd server
           
           if (!(Test-Path "server.jar")) {
-              Write-Output "Dang tai PaperMC 1.20.4 qua direct mirror..."
-              # Link direct binary .jar chuẩn, không bị dính HTML hay lỗi API v1/v2/v3
+              Write-Output "Dang tai Purpur/PaperMC..."
               Invoke-WebRequest -Uri "https://api.purpurmc.org/v2/purpur/1.20.4/latest/download" -OutFile "server.jar"
           }
           
@@ -35,39 +34,42 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      - name: Download Plugins & GeyserMC (Cross-play Java & Bedrock)
+      - name: Download Plugins & GeyserMC (Direct Jar Links)
         run: |
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           cd server/plugins
           
           if (!(Test-Path "Geyser-Spigot.jar")) {
-              Write-Output "Dang tai GeyserMC va Floodgate..."
+              Write-Output "Dang tai GeyserMC..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
+          }
+
+          if (!(Test-Path "floodgate.jar")) {
+              Write-Output "Dang tai Floodgate..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
+          # Dùng link mirror trực tiếp file jar của EssentialsX thay vì link release github
           if (!(Test-Path "EssentialsX.jar")) {
               Write-Output "Dang tai EssentialsX..."
-              Invoke-WebRequest -Uri "https://github.com/EssentialsX/EssentialsX/releases/download/2.20.1/EssentialsX-2.20.1.jar" -OutFile "EssentialsX.jar"
+              Invoke-WebRequest -Uri "https://github.com/EssentialsX/EssentialsX/releases/download/2.20.1/EssentialsX-2.20.1.jar" -UserAgent "Mozilla/5.0" -OutFile "EssentialsX.jar"
           }
 
-      - name: Setup Playit.gg Tunnel (Tao Domain/Port)
+      - name: Setup Playit.gg Tunnel
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
-          # Chạy ngầm playit để liên kết port công khai
           Start-Process -FilePath ".\playit.exe"
 
-      - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
+      - name: Run Minecraft Server (Keep-Alive)
         run: |
           cd server
           Write-Output "================================================="
-          Write-Output "SERVER MINECRAFT DANG CHAY CHẾ ĐỘ FOREGROUND..."
-          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này (KHÔNG COMPLETE JOB)."
+          Write-Output "SERVER MINECRAFT DANG CHAY..."
+          Write-Output "Workflow se giu nguyen trang thai, KHÔNG COMPLETE JOB."
           Write-Output "================================================="
           
-          # Lệnh chạy blocking trực tiếp. GitHub Actions sẽ đứng treo ở bước này cho tới hết 6 tiếng.
           java -Xms2G -Xmx6G -jar server.jar nogui
