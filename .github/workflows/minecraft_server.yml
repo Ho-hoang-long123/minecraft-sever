@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360
+    timeout-minutes: 360 # Giới hạn 6 tiếng của GitHub Actions
 
     steps:
       - name: Checkout Repository
@@ -49,9 +49,8 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg (Fixed Path)
+      - name: Run Playit.gg & Show Link Clearly
         run: |
-          # Dùng đường dẫn tương đối trực tiếp vào thư mục server
           cd server
           
           if (!(Test-Path "playit.exe")) {
@@ -59,30 +58,26 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
+          # Dọn dẹp file cũ để tạo liên kết sạch mới
           if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
+          if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
-          Write-Output "KHOI DONG PLAYIT TRUC TIEP..."
+          Write-Output "DANG KHOI DONG PLAYIT VA LAY LINK..."
           Write-Output "========================================"
 
-          $exePath = Join-Path (Get-Location) "playit.exe"
-          $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-          $processInfo.FileName = $exePath
-          $processInfo.WorkingDirectory = (Get-Location)
-          $processInfo.UseShellExecute = $false
-          $processInfo.RedirectStandardOutput = $true
-          $processInfo.RedirectStandardError = $true
+          # Chạy playit và chuyển hướng output log ra file văn bản
+          Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
-          $process = [System.Diagnostics.Process]::Start($processInfo)
-          
-          # Đợi 10 giây để agent kết nối mạng thành công với server Playit
-          Start-Sleep -Seconds 10
-          
-          if (!$process.HasExited) {
-              Write-Output "Playit da ket noi va dang chay ngam on dinh!"
+          # Đợi 8 giây để playit tạo đường dẫn claim chính thức
+          Start-Sleep -Seconds 8
+
+          # Đọc file log và in toàn bộ ra màn hình GitHub Actions cho bạn thấy
+          if (Test-Path "playit_out.txt") {
+              Write-Output "=== DU LIEU LINK CLAIM CUA PLAYIT ==="
+              Get-Content "playit_out.txt"
           } else {
-              Write-Output "Playit gap loi khi khoi dong!"
-              $process.StandardError.ReadToEnd()
+              Write-Output "Chua thay file log!"
           }
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
@@ -90,6 +85,8 @@ jobs:
           cd server
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
+          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này, KHÔNG COMPLETE JOB cho đến hết 6 tiếng."
           Write-Output "========================================"
           
+          # Chạy trực tiếp để giữ action luôn hoạt động liên tục
           java -Xms2G -Xmx6G -jar server.jar nogui
