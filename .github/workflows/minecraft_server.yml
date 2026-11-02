@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Tự động cài đặt Fabric 1.20.4 bằng Installer chính thức & Tải Fabric API
+      # 4. Tự động cài đặt Fabric 1.20.4 & Tải Fabric API (có kèm User-Agent chống chặn)
       - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -59,7 +59,8 @@ jobs:
           # Tải và chạy Fabric Installer chính thức để tự sinh ra file fabric-server-launch.jar
           if (!(Test-Path "fabric-server-launch.jar")) {
               Write-Output "Dang tai Fabric Installer..."
-              Invoke-WebRequest -Uri "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -OutFile "fabric-installer.jar"
+              $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+              Invoke-WebRequest -Uri "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -UserAgent $userAgent -OutFile "fabric-installer.jar"
               
               Write-Output "Dang cai dat Fabric Server 1.20.4..."
               java -jar fabric-installer.jar server -mcversion 1.20.4 -downloadMinecraft
@@ -69,11 +70,12 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-          # Tự động tải Fabric API (Mod nền tảng bắt buộc)
+          # Tải Fabric API có kèm User-Agent để vượt tường lửa Modrinth
           cd mods
           if (!(Test-Path "fabric-api.jar")) {
               Write-Output "Dang tai Fabric API..."
-              Invoke-WebRequest -Uri "https://cdn.modrinth.com/data/P7dR8mSH/versions/9q02uVw8/fabric-api-0.92.2%2B1.20.4.jar" -OutFile "fabric-api.jar"
+              $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+              Invoke-WebRequest -Uri "https://cdn.modrinth.com/data/P7dR8mSH/versions/9q02uVw8/fabric-api-0.92.2%2B1.20.4.jar" -UserAgent $userAgent -OutFile "fabric-api.jar"
           }
           cd ..
 
@@ -84,7 +86,8 @@ jobs:
           
           if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
-              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
+              $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -UserAgent $userAgent -OutFile "playit.exe"
           }
 
           Write-Output "========================================"
