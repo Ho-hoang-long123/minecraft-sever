@@ -39,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-minecraft-world-
 
-      # 3. Lưu cấu hình Playit để giữ nguyên IP cũ (Không cần claim lại)
+      # 3. Lưu cấu hình Playit để giữ nguyên IP cũ
       - name: Cache Playit Config
         uses: actions/cache@v4
         with:
@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Tự động cài đặt Fabric 1.20.4 & Tải Fabric API (có kèm User-Agent chống chặn)
+      # 4. Tự động cài đặt Fabric 1.20.4 & Tải Fabric API từ GitHub Releases (Bao mượt, không lỗi 403)
       - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -56,11 +56,10 @@ jobs:
           
           cd server
           
-          # Tải và chạy Fabric Installer chính thức để tự sinh ra file fabric-server-launch.jar
+          # Tải Installer và sinh file khởi chạy Fabric Server
           if (!(Test-Path "fabric-server-launch.jar")) {
               Write-Output "Dang tai Fabric Installer..."
-              $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-              Invoke-WebRequest -Uri "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -UserAgent $userAgent -OutFile "fabric-installer.jar"
+              curl.exe -sL "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -o "fabric-installer.jar"
               
               Write-Output "Dang cai dat Fabric Server 1.20.4..."
               java -jar fabric-installer.jar server -mcversion 1.20.4 -downloadMinecraft
@@ -70,12 +69,11 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-          # Tải Fabric API có kèm User-Agent để vượt tường lửa Modrinth
+          # Tải Fabric API từ GitHub Releases (Tránh hoàn toàn lỗi 403 của Modrinth)
           cd mods
           if (!(Test-Path "fabric-api.jar")) {
-              Write-Output "Dang tai Fabric API..."
-              $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-              Invoke-WebRequest -Uri "https://cdn.modrinth.com/data/P7dR8mSH/versions/9q02uVw8/fabric-api-0.92.2%2B1.20.4.jar" -UserAgent $userAgent -OutFile "fabric-api.jar"
+              Write-Output "Dang tai Fabric API tu GitHub Releases..."
+              curl.exe -sL "https://github.com/FabricMC/fabric/releases/download/0.92.2%2B1.20.4/fabric-api-0.92.2+1.20.4.jar" -o "fabric-api.jar"
           }
           cd ..
 
@@ -86,15 +84,14 @@ jobs:
           
           if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
-              $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -UserAgent $userAgent -OutFile "playit.exe"
+              curl.exe -sL "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -o "playit.exe"
           }
 
           Write-Output "========================================"
           Write-Output "KHOI DONG PLAYIT AGENT..."
           Write-Output "========================================"
 
-          # Khởi chạy Playit (tự động nhận diện playit.toml cũ nếu có)
+          # Khởi chạy Playit (nhận diện playit.toml cũ nếu có)
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
           Start-Sleep -Seconds 7
