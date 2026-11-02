@@ -51,7 +51,6 @@ jobs:
 
       - name: Run Playit.gg & Show Claim Link
         run: |
-          # Lấy đường dẫn tuyệt đối của thư mục server hiện tại để tránh lỗi đường dẫn
           $serverDir = Resolve-Path "server"
           
           if (!(Test-Path "$serverDir\playit.exe")) {
@@ -62,23 +61,26 @@ jobs:
           if (Test-Path "$serverDir\playit.toml") { Remove-Item "$serverDir\playit.toml" }
 
           Write-Output "========================================"
-          Write-Output "KHOI DONG PLAYIT.GG..."
+          Write-Output "KHOI DONG PLAYIT.GG VA HỨNG LOG..."
           Write-Output "========================================"
           
-          # Chạy background job với đường dẫn tuyệt đối chuẩn xác
+          # Chạy background job và gom toàn bộ log vào file playit.log
           $job = Start-Job -ScriptBlock {
               param($dir)
               Set-Location $dir
-              .\playit.exe
+              .\playit.exe *>&1 > "playit.log"
           } -ArgumentList $serverDir
           
-          # Đợi 8 giây để playit kết nối và sinh link claim
-          Start-Sleep -Seconds 8
+          # Đợi 10 giây để playit khởi tạo xong và ghi file log
+          Start-Sleep -Seconds 10
           
-          # Lấy log và in thẳng ra màn hình GitHub Actions
-          $output = Receive-Job -Job $job
-          Write-Output "--- KET QUA PLAYIT LOG ---"
-          Write-Output $output
+          # Đọc file log và in thẳng ra màn hình GitHub Actions
+          if (Test-Path "$serverDir\playit.log") {
+              Write-Output "--- NOI DUNG LOG PLAYIT ---"
+              Get-Content "$serverDir\playit.log"
+          } else {
+              Write-Output "Chua thay file log duoc tao ra..."
+          }
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
