@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn 6 tiếng của GitHub Actions
+    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
 
     steps:
       - name: Checkout Repository
@@ -49,7 +49,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg & Show Link Clearly
+      - name: Run Playit.gg (Direct Connection Mode)
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
@@ -57,26 +57,29 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
-          # Xóa file cũ để playit sinh kết nối mới sạch sẽ
           if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
-          if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
-          Write-Output "DANG KHOI DONG PLAYIT VA LAY LINK..."
+          Write-Output "KHOI DONG PLAYIT TRUC TIEP..."
           Write-Output "========================================"
 
-          # Khởi động playit và hứng thẳng log ra file text để in ra màn hình
-          Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
+          # Sử dụng ProcessStartInfo để ép Playit kết nối thông suốt không bị đơ
+          $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $processInfo.FileName = ".\playit.exe"
+          $processInfo.UseShellExecute = $false
+          $processInfo.RedirectStandardOutput = $true
+          $processInfo.RedirectStandardError = $true
           
-          # Đợi 7 giây để playit tạo link claim chính thức
-          Start-Sleep -Seconds 7
-
-          # In toàn bộ nội dung log ra màn hình GitHub Actions
-          if (Test-Path "playit_out.txt") {
-              Write-Output "=== DU LIEU LINK CLAIM CUA PLAYIT ==="
-              Get-Content "playit_out.txt"
+          $process = [System.Diagnostics.Process]::Start($processInfo)
+          
+          # Đợi 10 giây để agent kết nối mạng thành công với server Playit
+          Start-Sleep -Seconds 10
+          
+          if (!$process.HasExited) {
+              Write-Output "Playit da ket noi va dang chay ngam on dinh!"
           } else {
-              Write-Output "Chua thay file log!"
+              Write-Output "Playit gap loi khi khoi dong!"
+              $process.StandardError.ReadToEnd()
           }
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
@@ -87,5 +90,5 @@ jobs:
           Write-Output "Workflow se GIỮ NGUYÊN trạng thái này, KHÔNG COMPLETE JOB cho đến hết 6 tiếng."
           Write-Output "========================================"
           
-          # Chạy trực tiếp foreground để giữ action không bị tắt
+          # Chạy trực tiếp foreground để giữ action hoạt động liên tục
           java -Xms2G -Xmx6G -jar server.jar nogui
