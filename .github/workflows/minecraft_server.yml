@@ -18,14 +18,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 1. Lưu giữ thư mục MODS (trừ fabric-api để tránh lưu file lỗi)
+      # 1. Nâng cấp phiên bản cache key (v3) để bỏ hẳn cache cũ bị hỏng
       - name: Cache Minecraft Mods
         uses: actions/cache@v4
         with:
-          path: server/mods
-          key: ${{ runner.os }}-minecraft-mods-v2-${{ hashFiles('server/mods/*.jar') }}
+          path: |
+            server/mods
+            server/Mods
+          key: ${{ runner.os }}-minecraft-mods-v3-${{ hashFiles('server/mods/*.jar') }}
           restore-keys: |
-            ${{ runner.os }}-minecraft-mods-v2-
+            ${{ runner.os }}-minecraft-mods-v3-
 
       # 2. Lưu giữ Thế Giới (World)
       - name: Cache Minecraft World
@@ -48,7 +50,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Thiết lập Server, Xóa file API lỗi cũ & Tải lại bản chuẩn
+      # 4. Dọn dẹp file lỗi, cài đặt Fabric & Tải Fabric API từ Maven chuẩn
       - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -56,9 +58,9 @@ jobs:
           
           cd server
           
-          # LUÔN XÓA FILE FABRIC-API CŨ ĐỂ TRÁNH LỖI CACHE VÀ TẢI MỚI SẠCH HOÀN TOÀN
-          if (Test-Path "mods/fabric-api.jar") { Remove-Item -Path "mods/fabric-api.jar" -Force }
-          if (Test-Path "Mods/fabric-api.jar") { Remove-Item -Path "Mods/fabric-api.jar" -Force }
+          # Xóa toàn bộ file .jar cũ trong thư mục mods để tránh sót file lỗi
+          if (Test-Path "mods") { Remove-Item -Path "mods\*" -Recurse -Force -ErrorAction SilentlyContinue }
+          if (Test-Path "Mods") { Remove-Item -Path "Mods\*" -Recurse -Force -ErrorAction SilentlyContinue }
 
           # Tải Installer và sinh file khởi chạy Fabric Server
           if (!(Test-Path "fabric-server-launch.jar")) {
@@ -73,10 +75,11 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-          # Tải lại Fabric API trực tiếp từ GitHub Releases
+          # Tải Fabric API trực tiếp từ kho Maven Central chính thức (100% chuẩn, không lỗi)
+          if (!(Test-Path "mods")) { New-Item -ItemType Directory -Path "mods" -Force }
           cd mods
-          Write-Output "Dang tai Fabric API moi nhat..."
-          curl.exe -sL "https://github.com/FabricMC/fabric/releases/download/0.92.2%2B1.20.4/fabric-api-0.92.2+1.20.4.jar" -o "fabric-api.jar"
+          Write-Output "Dang tai Fabric APIchinh thuc..."
+          curl.exe -sL "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.92.2+1.20.4/fabric-api-0.92.2+1.20.4.jar" -o "fabric-api.jar"
           cd ..
 
       # 5. Chạy Playit & Server Fabric đồng thời
