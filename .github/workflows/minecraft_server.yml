@@ -60,8 +60,8 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      # 4. Khởi chạy Playit và in link claim trực tiếp ra màn hình log
-      - name: Run Playit.gg & Show Link Clearly
+      # 4. Chạy đồng thời Playit ngầm và Server Minecraft giữ tiến trình sống liên tục
+      - name: Run Playit & Minecraft Server Together
         run: |
           cd server
           
@@ -70,43 +70,28 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
-          if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
           if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
-          Write-Output "DANG KHOI DONG PLAYIT DE LAY LINK..."
+          Write-Output "KHOI DONG PLAYIT AGENT..."
           Write-Output "========================================"
 
-          # Dùng Start-Process chuyển hướng thẳng ra file txt đồng thời in ra màn hình
+          # Khởi chạy Playit ngầm bằng Start-Process trong cùng một phiên làm việc
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
-          # Đợi 10 giây để playit kịp kết nối và sinh file
-          Start-Sleep -Seconds 10
+          # Đợi 8 giây để Playit kết nối mạng và tạo link claim
+          Start-Sleep -Seconds 8
 
-          # Đọc file và in toàn bộ nội dung ra màn hình log GitHub Actions
           if (Test-Path "playit_out.txt") {
               Write-Output "========================================="
-              Write-Output "=== LINK CLAIM CUA PLAYIT (COPY LINK DUOI) ==="
+              Write-Output "=== LINK CLAIM CUA PLAYIT (COPY VA DAN) ==="
               Get-Content "playit_out.txt"
               Write-Output "========================================="
-          } else {
-              Write-Output "Khong tim thay file log!"
           }
 
-          # Chuyển Playit sang chạy ngầm bền vững để không bị chết khi sang bước sau
-          $workDir = (Get-Location).Path
-          Start-Job -ScriptBlock {
-              param($dir)
-              Set-Location $dir
-              .\playit.exe --secret_path playit.toml
-          } -ArgumentList $workDir | Out-Null
-
-      # 5. Khởi chạy Server Minecraft (Giữ tiến trình liên tục)
-      - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
-        run: |
-          cd server
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
           Write-Output "========================================"
           
+          # Chạy Java ở foreground (giữ step này hoạt động liên tục, đồng thời giữ Playit luôn online)
           java -Xms2G -Xmx6G -jar server.jar nogui
