@@ -1,4 +1,4 @@
-name: Minecraft Server Runner
+name: Minecraft Modded Server Runner
 
 on:
   workflow_dispatch:
@@ -18,16 +18,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 1. Lưu giữ Plugins để không bị mất khi tắt server
-      - name: Cache Minecraft Plugins
+      # 1. Lưu giữ thư mục MODS (thay vì plugins) để giữ các mod bạn tự thêm
+      - name: Cache Minecraft Mods
         uses: actions/cache@v4
         with:
-          path: server/plugins
-          key: ${{ runner.os }}-minecraft-plugins-${{ hashFiles('server/plugins/*.jar') }}
+          path: server/mods
+          key: ${{ runner.os }}-minecraft-mods-${{ hashFiles('server/mods/*.jar') }}
           restore-keys: |
-            ${{ runner.os }}-minecraft-plugins-
+            ${{ runner.os }}-minecraft-mods-
 
-      # 2. LƯU GIỮ THẾ GIỚI (WORLD) ĐỂ KHÔNG BỊ MẤT MAP CŨ
+      # 2. Lưu giữ Thế Giới (World) để không bị mất map cũ
       - name: Cache Minecraft World
         uses: actions/cache@v4
         with:
@@ -39,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-minecraft-world-
 
-      # 3. LƯU GIỮ CẤU HÌNH PLAYIT ĐỂ GIỮ NGUYÊN IP CŨ (KHÔNG CẦN CLAIM LẠI)
+      # 3. Lưu cấu hình Playit để giữ nguyên IP cũ (Không cần claim lại)
       - name: Cache Playit Config
         uses: actions/cache@v4
         with:
@@ -48,41 +48,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Khởi tạo thư mục server & tải file server gốc nếu chưa có
-      - name: Setup Server Files & Download Server
+      # 4. Thiết lập Server Fabric 1.20.4 & Tải Fabric API tự động
+      - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
-          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
+          if (!(Test-Path "server/mods")) { New-Item -ItemType Directory -Path "server/mods" -Force }
           
           cd server
           
-          if (!(Test-Path "server.jar")) {
-              Write-Output "Dang tai Purpur 1.20.4..."
-              Invoke-WebRequest -Uri "https://api.purpurmc.org/v2/purpur/1.20.4/latest/download" -OutFile "server.jar"
+          # Tải trình cài đặt Fabric Server nếu chưa có
+          if (!(Test-Path "fabric-server-launch.jar")) {
+              Write-Output "Dang tai Fabric Server 1.20.4..."
+              Invoke-WebRequest -Uri "https://meta.fabricmc.net/v2/versions/loader/1.20.4/0.15.7/1.0.1/server/jar.jar" -OutFile "fabric-server-launch.jar"
           }
           
           if (!(Test-Path "eula.txt")) {
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      # 5. Tải GeyserMC & Floodgate cho cross-play (chỉ tải nếu chưa có sẵn)
-      - name: Download Default Core Plugins (Geyser & Floodgate)
-        run: |
-          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
-          cd server/plugins
-          
-          if (!(Test-Path "Geyser-Spigot.jar")) {
-              Write-Output "Dang tai GeyserMC..."
-              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
+          # Tự động tải Fabric API (Mod nền tảng bắt buộc phải có cho Fabric)
+          cd mods
+          if (!(Test-Path "fabric-api.jar")) {
+              Write-Output "Dang tai Fabric API..."
+              Invoke-WebRequest -Uri "https://cdn.modrinth.com/data/P7dR8mSH/versions/9q02uVw8/fabric-api-0.92.2%2B1.20.4.jar" -OutFile "fabric-api.jar"
           }
+          cd ..
 
-          if (!(Test-Path "floodgate.jar")) {
-              Write-Output "Dang tai Floodgate..."
-              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
-          }
-
-      # 6. Chạy Playit và Minecraft đồng thời (Tự động nhận diện cấu hình cũ nếu có)
-      - name: Run Playit & Minecraft Server Together
+      # 5. Chạy Playit & Server Fabric đồng thời
+      - name: Run Playit & Minecraft Modded Server Together
         run: |
           cd server
           
@@ -95,7 +88,7 @@ jobs:
           Write-Output "KHOI DONG PLAYIT AGENT..."
           Write-Output "========================================"
 
-          # Khởi chạy Playit (Nếu đã có file playit.toml từ lần trước, nó sẽ tự động kết nối luôn mà không cần claim lại)
+          # Khởi chạy Playit (tự động nhận diện cấu hình playit.toml cũ nếu có)
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
           Start-Sleep -Seconds 7
@@ -106,12 +99,13 @@ jobs:
               if ($?) {
                   Get-Content "playit_out.txt"
               } else {
-                  Write-Output "Playit da tu dong ket nối lai voi cau hinh cu thanh cong!"
+                  Write-Output "Playit da tu dong ket noi lai voi cau hinh cu thanh cong!"
               }
           }
 
           Write-Output "========================================"
-          Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
+          Write-Output "BAT DAU CHAY SERVER MODDED FABRIC..."
           Write-Output "========================================"
           
-          java -Xms2G -Xmx6G -jar server.jar nogui
+          java -Xms2G -Xmx6G -jar fabric-server-launch.jar nogui
+          
