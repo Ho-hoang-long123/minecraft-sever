@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub
+    timeout-minutes: 360
 
     steps:
       - name: Checkout Repository
@@ -27,7 +27,8 @@ jobs:
           
           if (!(Test-Path "server.jar")) {
               Write-Output "Dang tai PaperMC..."
-              Invoke-WebRequest -Uri "https://api.papermc.v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
+              # Đã sửa lại đúng domain api.papermc.io
+              Invoke-WebRequest -Uri "https://api.papermc.io/v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
           }
           
           if (!(Test-Path "eula.txt")) {
@@ -56,14 +57,10 @@ jobs:
               Write-Output "Dang tai Playit.gg..."
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
-          # Bật playit ngầm để lấy port
           Start-Process -FilePath ".\playit.exe"
 
       - name: Run Minecraft Server (Blocking Execution - Keep Active)
         run: |
           cd server
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
-          
-          # Chạy Java trực tiếp (Foreground Mode). 
-          # GitHub Actions SẼ BỊ TREO TẠI ĐÂY để giữ server chạy, không thể Complete Job được!
           java -Xms2G -Xmx6G -jar server.jar nogui
