@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360
+    timeout-minutes: 360 # Giới hạn 6 tiếng của GitHub Actions
 
     steps:
       - name: Checkout Repository
@@ -49,7 +49,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg Safely
+      - name: Run Playit.gg & Show Link Clearly
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
@@ -57,30 +57,35 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
-          # Dọn dẹp file cũ để tạo mới hoàn toàn
+          # Xóa file cũ để playit sinh kết nối mới sạch sẽ
           if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
+          if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
-          Write-Output "KHOI DONG VA GIU TRANG THAI PLAYIT..."
+          Write-Output "DANG KHOI DONG PLAYIT VA LAY LINK..."
           Write-Output "========================================"
+
+          # Khởi động playit và hứng thẳng log ra file text để in ra màn hình
+          Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
-          # Sử dụng Job nền chuẩn của PowerShell kết hợp giữ tiến trình không bị tắt ngóm
-          $job = Start-Job -ScriptBlock {
-              Set-Location "D:\a\minecraft-sever\minecraft-sever\server"
-              .\playit.exe
+          # Đợi 7 giây để playit tạo link claim chính thức
+          Start-Sleep -Seconds 7
+
+          # In toàn bộ nội dung log ra màn hình GitHub Actions
+          if (Test-Path "playit_out.txt") {
+              Write-Output "=== DU LIEU LINK CLAIM CUA PLAYIT ==="
+              Get-Content "playit_out.txt"
+          } else {
+              Write-Output "Chua thay file log!"
           }
-          
-          # Đợi 8 giây để agent khởi tạo kết nối thông suốt với server của Playit
-          Start-Sleep -Seconds 8
-          
-          # In ra thông tin trạng thái job
-          Get-Job
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
           cd server
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
+          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này, KHÔNG COMPLETE JOB cho đến hết 6 tiếng."
           Write-Output "========================================"
           
+          # Chạy trực tiếp foreground để giữ action không bị tắt
           java -Xms2G -Xmx6G -jar server.jar nogui
