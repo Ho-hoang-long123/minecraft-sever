@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
+    timeout-minutes: 360
 
     steps:
       - name: Checkout Repository
@@ -26,7 +26,7 @@ jobs:
           cd server
           
           if (!(Test-Path "server.jar")) {
-              Write-Output "Dang tai Purpur 1.20.4 truc tiep..."
+              Write-Output "Dang tai Purpur 1.20.4..."
               Invoke-WebRequest -Uri "https://api.purpurmc.org/v2/purpur/1.20.4/latest/download" -OutFile "server.jar"
           }
           
@@ -34,7 +34,7 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      - name: Download GeyserMC & Floodgate (Cross-play Java & Bedrock)
+      - name: Download GeyserMC & Floodgate
         run: |
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           cd server/plugins
@@ -46,26 +46,37 @@ jobs:
 
           if (!(Test-Path "floodgate.jar")) {
               Write-Output "Dang tai Floodgate..."
-              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
+              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgrade/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Setup Playit.gg Tunnel (Tao Domain/Port)
+      - name: Run Playit.gg & Get Setup Link
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
-          # Chạy ngầm playit để lấy link truy cập
-          Start-Process -FilePath ".\playit.exe"
+          
+          Write-Output "========================================"
+          Write-Output "DANG KHOI DONG PLAYIT.GG..."
+          Write-Output "Hay kiem tra log ben duoi, no se hien ra 1 duong link dang: https://playit.gg/claim/..."
+          Write-Output "Copy link do dan vao trinh duyet de nhan domain/host cho server!"
+          Write-Output "========================================"
+          
+          # Chạy trực tiếp playit trong 10 giây đầu hoặc chạy song song để nó nhả link claim ra màn hình log rồi mới bật server
+          Start-Job -ScriptBlock {
+              cd server
+              .\playit.exe
+          }
+          
+          # Đợi 10 giây để playit khởi tạo và in link ra log
+          Start-Sleep -Seconds 10
 
-      - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
+      - name: Run Minecraft Server (Keep-Alive)
         run: |
           cd server
-          Write-Output "================================================="
-          Write-Output "SERVER MINECRAFT DANG CHAY CHẾ ĐỘ FOREGROUND..."
-          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này (KHÔNG COMPLETE JOB) cho đến hết 6 tiếng."
-          Write-Output "================================================="
+          Write-Output "========================================"
+          Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
+          Write-Output "========================================"
           
-          # Chạy trực tiếp để treo terminal, giữ action không bị tắt
           java -Xms2G -Xmx6G -jar server.jar nogui
