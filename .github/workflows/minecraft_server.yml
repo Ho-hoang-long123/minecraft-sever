@@ -26,9 +26,8 @@ jobs:
           cd server
           
           if (!(Test-Path "server.jar")) {
-              Write-Output "Dang tai Purpur 1.20.4 nhanh..."
-              $wc = New-Object System.Net.WebClient
-              $wc.DownloadFile("https://api.purpurmc.org/v2/purpur/1.20.4/latest/download", "server.jar")
+              Write-Output "Dang tai Purpur 1.20.4..."
+              Invoke-WebRequest -Uri "https://api.purpurmc.org/v2/purpur/1.20.4/latest/download" -OutFile "server.jar"
           }
           
           if (!(Test-Path "eula.txt")) {
@@ -40,26 +39,24 @@ jobs:
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           cd server/plugins
           
-          $wc = New-Object System.Net.WebClient
           if (!(Test-Path "Geyser-Spigot.jar")) {
               Write-Output "Dang tai GeyserMC..."
-              $wc.DownloadFile("https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot", "Geyser-Spigot.jar")
+              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
           }
 
           if (!(Test-Path "floodgate.jar")) {
               Write-Output "Dang tai Floodgate..."
-              $wc.DownloadFile("https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot", "floodgate.jar")
+              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
       - name: Run Playit.gg & Show Claim Link
         run: |
+          # Lấy đường dẫn tuyệt đối của thư mục server hiện tại để tránh lỗi đường dẫn
           $serverDir = Resolve-Path "server"
-          $wc = New-Object System.Net.WebClient
           
           if (!(Test-Path "$serverDir\playit.exe")) {
-              Write-Output "Dang tai Playit.exe (Toc do cao)..."
-              # Dùng WebClient để tải trực tiếp mượt hơn Invoke-WebRequest
-              $wc.DownloadFile("https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe", "$serverDir\playit.exe")
+              Write-Output "Dang tai Playit.exe..."
+              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "$serverDir\playit.exe"
           }
           
           if (Test-Path "$serverDir\playit.toml") { Remove-Item "$serverDir\playit.toml" }
@@ -68,14 +65,17 @@ jobs:
           Write-Output "KHOI DONG PLAYIT.GG..."
           Write-Output "========================================"
           
+          # Chạy background job với đường dẫn tuyệt đối chuẩn xác
           $job = Start-Job -ScriptBlock {
               param($dir)
               Set-Location $dir
               .\playit.exe
           } -ArgumentList $serverDir
           
+          # Đợi 8 giây để playit kết nối và sinh link claim
           Start-Sleep -Seconds 8
           
+          # Lấy log và in thẳng ra màn hình GitHub Actions
           $output = Receive-Job -Job $job
           Write-Output "--- KET QUA PLAYIT LOG ---"
           Write-Output $output
