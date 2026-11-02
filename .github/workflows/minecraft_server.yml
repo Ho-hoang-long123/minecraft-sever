@@ -49,7 +49,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Setup & Run Playit.gg (Visible Logs)
+      - name: Run Playit.gg Properly
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
@@ -57,19 +57,24 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
+          # Xóa file toml cũ nếu bị kẹt cấu hình
+          if (Test-Path "playit.toml") {
+              Remove-Item "playit.toml"
+          }
+
           Write-Output "========================================"
-          Write-Output "KHOI DONG PLAYIT.GG (HIEN THI LOG TRUC TIEP)..."
+          Write-Output "KHOI DONG PLAYIT.GG..."
           Write-Output "========================================"
           
-          # Dùng Start-Process kèm chuyển hướng Output ra file log riêng để dễ đọc
+          # Chạy trực tiếp playit, không tạo file rỗng trước để nó tự sinh cấu hình kết nối chuẩn
           Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit_log.txt" -RedirectStandardError "playit_err.txt" -PassThru
           
-          # Đợi 5 giây để playit tạo file log
-          Start-Sleep -Seconds 5
+          # Đợi 8 giây cho agent kết nối mạng
+          Start-Sleep -Seconds 8
           
           if (Test-Path "playit_log.txt") {
               Write-Output "--- NOI DUNG LOG PLAYIT ---"
-              Get-Content "playit_log.txt" -Tail 20
+              Get-Content "playit_log.txt" -Tail 25
           }
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
