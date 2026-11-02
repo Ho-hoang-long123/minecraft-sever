@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 1. Lưu giữ thư mục MODS để giữ các mod bạn tự thêm
+      # 1. Lưu giữ thư mục MODS
       - name: Cache Minecraft Mods
         uses: actions/cache@v4
         with:
@@ -27,7 +27,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-minecraft-mods-
 
-      # 2. Lưu giữ Thế Giới (World) để không bị mất map cũ
+      # 2. Lưu giữ Thế Giới (World)
       - name: Cache Minecraft World
         uses: actions/cache@v4
         with:
@@ -39,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-minecraft-world-
 
-      # 3. Lưu cấu hình Playit để giữ nguyên IP cũ
+      # 3. Lưu cấu hình Playit
       - name: Cache Playit Config
         uses: actions/cache@v4
         with:
@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Tự động cài đặt Fabric 1.20.4 & Tải Fabric API từ GitHub Releases (Bao mượt, không lỗi 403)
+      # 4. Cài đặt Fabric Server & Core Mods
       - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -56,7 +56,6 @@ jobs:
           
           cd server
           
-          # Tải Installer và sinh file khởi chạy Fabric Server
           if (!(Test-Path "fabric-server-launch.jar")) {
               Write-Output "Dang tai Fabric Installer..."
               curl.exe -sL "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -o "fabric-installer.jar"
@@ -69,15 +68,14 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-          # Tải Fabric API từ GitHub Releases (Tránh hoàn toàn lỗi 403 của Modrinth)
           cd mods
           if (!(Test-Path "fabric-api.jar")) {
-              Write-Output "Dang tai Fabric API tu GitHub Releases..."
+              Write-Output "Dang tai Fabric API..."
               curl.exe -sL "https://github.com/FabricMC/fabric/releases/download/0.92.2%2B1.20.4/fabric-api-0.92.2+1.20.4.jar" -o "fabric-api.jar"
           }
           cd ..
 
-      # 5. Chạy Playit & Server Fabric đồng thời
+      # 5. Chạy Playit (Tăng thời gian chờ lên 15 giây để kết nối mạng ổn định)
       - name: Run Playit & Minecraft Modded Server Together
         run: |
           cd server
@@ -91,19 +89,15 @@ jobs:
           Write-Output "KHOI DONG PLAYIT AGENT..."
           Write-Output "========================================"
 
-          # Khởi chạy Playit (nhận diện playit.toml cũ nếu có)
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
-          Start-Sleep -Seconds 7
+          # TĂNG THỜI GIAN CHỜ LÊN 15 GIÂY ĐỂ PLAYIT KỊP KẾT NỐI MẠNG RA NGOÀI
+          Write-Output "Dang doi Playit thiet lap ket noi mang (15 giay)..."
+          Start-Sleep -Seconds 15
 
           if (Test-Path "playit_out.txt") {
               Write-Output "=== LOG PLAYIT ==="
-              Get-Content "playit_out.txt" | Select-String "https://playit.gg/claim/" -Quiet
-              if ($?) {
-                  Get-Content "playit_out.txt"
-              } else {
-                  Write-Output "Playit da tu dong ket noi lai voi cau hinh cu thanh cong!"
-              }
+              Get-Content "playit_out.txt"
           }
 
           Write-Output "========================================"
