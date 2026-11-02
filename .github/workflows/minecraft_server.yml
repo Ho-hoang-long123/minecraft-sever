@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Cài đặt Fabric Server & Core Mods
+      # 4. Tự động cài đặt Fabric, dọn dẹp file mod lỗi & Tải Fabric API sạch
       - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -56,6 +56,12 @@ jobs:
           
           cd server
           
+          # QUAN TRỌNG: Tự động quét và xóa các file .jar bị lỗi hoặc rỗng (0 byte) trong thư mục mods để tránh lỗi ZipFile
+          if (Test-Path "mods") {
+              Get-ChildItem -Path "mods" -Filter "*.jar" | Where-Object { $_.Length -lt 1024 } | Remove-Item -Force
+          }
+
+          # Tải Installer và sinh file khởi chạy Fabric Server
           if (!(Test-Path "fabric-server-launch.jar")) {
               Write-Output "Dang tai Fabric Installer..."
               curl.exe -sL "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -o "fabric-installer.jar"
@@ -68,14 +74,15 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
+          # Tải lại Fabric API sạch nếu chưa có hoặc đã bị xóa do lỗi
           cd mods
           if (!(Test-Path "fabric-api.jar")) {
-              Write-Output "Dang tai Fabric API..."
+              Write-Output "Dang tai Fabric API tu GitHub Releases..."
               curl.exe -sL "https://github.com/FabricMC/fabric/releases/download/0.92.2%2B1.20.4/fabric-api-0.92.2+1.20.4.jar" -o "fabric-api.jar"
           }
           cd ..
 
-      # 5. Chạy Playit (Tăng thời gian chờ lên 15 giây để kết nối mạng ổn định)
+      # 5. Chạy Playit & Server Fabric đồng thời
       - name: Run Playit & Minecraft Modded Server Together
         run: |
           cd server
@@ -91,7 +98,6 @@ jobs:
 
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
-          # TĂNG THỜI GIAN CHỜ LÊN 15 GIÂY ĐỂ PLAYIT KỊP KẾT NỐI MẠNG RA NGOÀI
           Write-Output "Dang doi Playit thiet lap ket noi mang (15 giay)..."
           Start-Sleep -Seconds 15
 
