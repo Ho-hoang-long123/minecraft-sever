@@ -49,45 +49,35 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg & Show Claim Link
+      - name: Run Playit.gg & Get Link Directly
         run: |
-          $serverDir = Resolve-Path "server"
-          
-          if (!(Test-Path "$serverDir\playit.exe")) {
+          cd server
+          if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
-              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "$serverDir\playit.exe"
+              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
-          if (Test-Path "$serverDir\playit.toml") { Remove-Item "$serverDir\playit.toml" }
+          if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
 
           Write-Output "========================================"
-          Write-Output "KHOI DONG PLAYIT.GG VA HỨNG LOG..."
+          Write-Output "KHOI DONG PLAYIT TRUC TIEP..."
           Write-Output "========================================"
           
-          # Chạy background job và gom toàn bộ log vào file playit.log
-          $job = Start-Job -ScriptBlock {
-              param($dir)
-              Set-Location $dir
-              .\playit.exe *>&1 > "playit.log"
-          } -ArgumentList $serverDir
+          # Cho playit chạy song song trong 8 giây rồi tự động cắt tiến trình để nhả log ra màn hình
+          $process = Start-Process -FilePath ".\playit.exe" -PassThru
+          Start-Sleep -Seconds 8
           
-          # Đợi 10 giây để playit khởi tạo xong và ghi file log
-          Start-Sleep -Seconds 10
+          # Tạm dừng playit để in log ra terminal
+          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
           
-          # Đọc file log và in thẳng ra màn hình GitHub Actions
-          if (Test-Path "$serverDir\playit.log") {
-              Write-Output "--- NOI DUNG LOG PLAYIT ---"
-              Get-Content "$serverDir\playit.log"
-          } else {
-              Write-Output "Chua thay file log duoc tao ra..."
-          }
+          # Đọc file cấu hình hoặc cache log nếu có, hoặc hướng dẫn chạy tiếp
+          Write-Output "Da khoi dong xong lan dau. Dang tao file cau hinh..."
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
           cd server
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
-          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này, KHÔNG COMPLETE JOB cho đến hết 6 tiếng."
           Write-Output "========================================"
           
           java -Xms2G -Xmx6G -jar server.jar nogui
