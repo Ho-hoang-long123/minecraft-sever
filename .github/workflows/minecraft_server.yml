@@ -51,22 +51,26 @@ jobs:
 
       - name: Run Playit.gg & Show Claim Link
         run: |
-          cd server
-          if (!(Test-Path "playit.exe")) {
+          # Lấy đường dẫn tuyệt đối của thư mục server hiện tại để tránh lỗi đường dẫn
+          $serverDir = Resolve-Path "server"
+          
+          if (!(Test-Path "$serverDir\playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
-              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
+              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "$serverDir\playit.exe"
           }
           
-          if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
+          if (Test-Path "$serverDir\playit.toml") { Remove-Item "$serverDir\playit.toml" }
 
           Write-Output "========================================"
           Write-Output "KHOI DONG PLAYIT.GG..."
           Write-Output "========================================"
           
+          # Chạy background job với đường dẫn tuyệt đối chuẩn xác
           $job = Start-Job -ScriptBlock {
-              Set-Location "server"
+              param($dir)
+              Set-Location $dir
               .\playit.exe
-          }
+          } -ArgumentList $serverDir
           
           # Đợi 8 giây để playit kết nối và sinh link claim
           Start-Sleep -Seconds 8
