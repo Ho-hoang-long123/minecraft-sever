@@ -43,7 +43,6 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      # 2. Đảm bảo chắc chắn thư mục plugins tồn tại rồi mới cd vào
       - name: Download Default Core Plugins (Geyser & Floodgate)
         run: |
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
@@ -59,7 +58,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg & Show Link Clearly
+      - name: Run Playit.gg (Background Job Sync)
         run: |
           cd server
           
@@ -69,22 +68,20 @@ jobs:
           }
           
           if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
-          if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
-          Write-Output "DANG KHOI DONG PLAYIT VA LAY LINK..."
+          Write-Output "KHOI DONG PLAYIT QUA POWERSHELL JOB..."
           Write-Output "========================================"
 
-          Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
-          
-          Start-Sleep -Seconds 8
+          # Sử dụng Start-Job chuẩn của PowerShell để chạy đồng thời song song với server
+          Start-Job -ScriptBlock {
+              Set-Location "D:\a\minecraft-sever\minecraft-sever\server"
+              .\playit.exe
+          } | Out-Null
 
-          if (Test-Path "playit_out.txt") {
-              Write-Output "=== DU LIEU LINK CLAIM CUA PLAYIT ==="
-              Get-Content "playit_out.txt"
-          } else {
-              Write-Output "Chua thay file log!"
-          }
+          # Đợi 10 giây để agent thiết lập kết nối mạng ra ngoài
+          Start-Sleep -Seconds 10
+          Write-Output "Playit da duoc kich hoat ngam!"
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
