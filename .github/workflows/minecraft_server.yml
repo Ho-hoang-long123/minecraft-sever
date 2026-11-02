@@ -60,7 +60,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      # 4. Chạy Playit.gg theo cơ chế Job liên tục & in link claim ra console
+      # 4. Chạy Playit.gg chuẩn xác với --secret_path và hiển thị link claim
       - name: Run Playit.gg & Show Link Clearly
         run: |
           cd server
@@ -70,36 +70,27 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
-          # Dọn dẹp cấu hình cũ nếu chưa claim thành công
           if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
           if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
-          Write-Output "DANG KHOI DONG PLAYIT VA PHAT LINK..."
+          Write-Output "DANG KHOI DONG PLAYIT CHUAN XAC..."
           Write-Output "========================================"
 
-          # Chạy Playit qua PowerShell Job để duy trì socket kết nối ổn định không bị đơ
-          $serverPath = (Get-Location).Path
-          Start-Job -ScriptBlock {
-              param($dir)
-              Set-Location $dir
-              .\playit.exe --secret-path playit.toml > playit_out.txt 2>&1
-          } -ArgumentList $serverPath
-
-          # Đợi 10 giây để Playit tạo link claim và mở kết nối với máy chủ Playit
+          # Khởi chạy Playit trực tiếp và ghi log rõ ràng
+          Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
+          
+          # Đợi 10 giây để agent kết nối mạng ổn định với server Playit
           Start-Sleep -Seconds 10
 
           if (Test-Path "playit_out.txt") {
-              Write-Output "=== LINK CLAIM CUA PLAYIT (CLICK VAO DULIEU NAY) ==="
-              Get-Content "playit_out.txt" | Select-String "https://playit.gg/claim/"
-              Write-Output "----------------------------------------"
-              Write-Output "TOAN BO LOG CHUYEN HUONG PLAYIT:"
+              Write-Output "=== LINK CLAIM CUA PLAYIT (COPY VA DAN VAO TRINH DUYET) ==="
               Get-Content "playit_out.txt"
           } else {
               Write-Output "Chua thay file log playit!"
           }
 
-      # 5. Khởi chạy Server Minecraft (Giữ tiến trình liên tục)
+      # 5. Khởi chạy Server Minecraft (Giữ tiến trình liên tục không bị tắt)
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
           cd server
