@@ -18,18 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 1. Nâng cấp phiên bản cache key (v3) để bỏ hẳn cache cũ bị hỏng
-      - name: Cache Minecraft Mods
-        uses: actions/cache@v4
-        with:
-          path: |
-            server/mods
-            server/Mods
-          key: ${{ runner.os }}-minecraft-mods-v3-${{ hashFiles('server/mods/*.jar') }}
-          restore-keys: |
-            ${{ runner.os }}-minecraft-mods-v3-
-
-      # 2. Lưu giữ Thế Giới (World)
+      # 1. Chỉ giữ lại Cache cho Thế Giới (World) để không mất map cũ
       - name: Cache Minecraft World
         uses: actions/cache@v4
         with:
@@ -41,7 +30,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-minecraft-world-
 
-      # 3. Lưu cấu hình Playit
+      # 2. Giữ lại Cache cho Playit để giữ nguyên IP cũ không cần claim lại
       - name: Cache Playit Config
         uses: actions/cache@v4
         with:
@@ -50,19 +39,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Dọn dẹp file lỗi, cài đặt Fabric & Tải Fabric API từ Maven chuẩn
-      - name: Setup Fabric Server & Core Mods
+      # 3. Thiết lập Server Fabric 1.20.4 & Tải mới Fabric API sạch 100%
+      - name: Setup Fabric Server & Fresh Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
           if (!(Test-Path "server/mods")) { New-Item -ItemType Directory -Path "server/mods" -Force }
           
           cd server
           
-          # Xóa toàn bộ file .jar cũ trong thư mục mods để tránh sót file lỗi
-          if (Test-Path "mods") { Remove-Item -Path "mods\*" -Recurse -Force -ErrorAction SilentlyContinue }
-          if (Test-Path "Mods") { Remove-Item -Path "Mods\*" -Recurse -Force -ErrorAction SilentlyContinue }
+          # Dọn dẹp sạch sẽ thư mục mods cũ để tránh sót file lỗi
+          Remove-Item -Path "mods\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-          # Tải Installer và sinh file khởi chạy Fabric Server
+          # Tải Installer và sinh file khởi chạy Fabric Server nếu chưa có
           if (!(Test-Path "fabric-server-launch.jar")) {
               Write-Output "Dang tai Fabric Installer..."
               curl.exe -sL "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -o "fabric-installer.jar"
@@ -75,14 +63,13 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-          # Tải Fabric API trực tiếp từ kho Maven Central chính thức (100% chuẩn, không lỗi)
-          if (!(Test-Path "mods")) { New-Item -ItemType Directory -Path "mods" -Force }
+          # Luôn tải mới Fabric API từ kho Maven chuẩn (Đảm bảo file luôn nguyên vẹn, không bao giờ lỗi zip)
           cd mods
-          Write-Output "Dang tai Fabric APIchinh thuc..."
+          Write-Output "Dang tai Fabric API moi nhat..."
           curl.exe -sL "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.92.2+1.20.4/fabric-api-0.92.2+1.20.4.jar" -o "fabric-api.jar"
           cd ..
 
-      # 5. Chạy Playit & Server Fabric đồng thời
+      # 4. Chạy Playit & Server Fabric đồng thời
       - name: Run Playit & Minecraft Modded Server Together
         run: |
           cd server
