@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 1. Lưu giữ thư mục MODS (thay vì plugins) để giữ các mod bạn tự thêm
+      # 1. Lưu giữ thư mục MODS để giữ các mod bạn tự thêm
       - name: Cache Minecraft Mods
         uses: actions/cache@v4
         with:
@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playit-config-
 
-      # 4. Thiết lập Server Fabric 1.20.4 & Tải Fabric API tự động
+      # 4. Tự động cài đặt Fabric 1.20.4 bằng Installer chính thức & Tải Fabric API
       - name: Setup Fabric Server & Core Mods
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -56,17 +56,20 @@ jobs:
           
           cd server
           
-          # Tải trình cài đặt Fabric Server nếu chưa có
+          # Tải và chạy Fabric Installer chính thức để tự sinh ra file fabric-server-launch.jar
           if (!(Test-Path "fabric-server-launch.jar")) {
-              Write-Output "Dang tai Fabric Server 1.20.4..."
-              Invoke-WebRequest -Uri "https://meta.fabricmc.net/v2/versions/loader/1.20.4/0.15.7/1.0.1/server/jar.jar" -OutFile "fabric-server-launch.jar"
+              Write-Output "Dang tai Fabric Installer..."
+              Invoke-WebRequest -Uri "https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.2/fabric-installer-0.11.2.jar" -OutFile "fabric-installer.jar"
+              
+              Write-Output "Dang cai dat Fabric Server 1.20.4..."
+              java -jar fabric-installer.jar server -mcversion 1.20.4 -downloadMinecraft
           }
           
           if (!(Test-Path "eula.txt")) {
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-          # Tự động tải Fabric API (Mod nền tảng bắt buộc phải có cho Fabric)
+          # Tự động tải Fabric API (Mod nền tảng bắt buộc)
           cd mods
           if (!(Test-Path "fabric-api.jar")) {
               Write-Output "Dang tai Fabric API..."
@@ -88,7 +91,7 @@ jobs:
           Write-Output "KHOI DONG PLAYIT AGENT..."
           Write-Output "========================================"
 
-          # Khởi chạy Playit (tự động nhận diện cấu hình playit.toml cũ nếu có)
+          # Khởi chạy Playit (tự động nhận diện playit.toml cũ nếu có)
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
           Start-Sleep -Seconds 7
