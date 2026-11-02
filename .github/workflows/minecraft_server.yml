@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Server Files & Download PaperMC
+      - name: Setup Server Files & Download PaperMC (API v3)
         run: |
           if (!(Test-Path "server")) { mkdir server }
           if (!(Test-Path "server/plugins")) { mkdir server/plugins }
@@ -26,9 +26,15 @@ jobs:
           cd server
           
           if (!(Test-Path "server.jar")) {
-              Write-Output "Dang tai PaperMC..."
-              # Đã sửa lại đúng domain api.papermc.io
-              Invoke-WebRequest -Uri "https://api.papermc.io/v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
+              Write-Output "Dang lay link va tai PaperMC qua API v3..."
+              
+              # Dùng PowerShell gọi API v3 mới để tự động bốc link file .jar bản 1.20.4 mới nhất
+              $json = Invoke-RestMethod -Uri "https://api.papermc.io/v3/projects/paper/versions/1.20.4/builds/latest"
+              $downloadUrl = $json.downloads."server:default".url
+              $fileName = $json.downloads."server:default".name
+              
+              Write-Output "Link tai: $downloadUrl"
+              Invoke-WebRequest -Uri $downloadUrl -OutFile "server.jar"
           }
           
           if (!(Test-Path "eula.txt")) {
