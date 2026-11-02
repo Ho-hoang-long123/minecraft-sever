@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
+    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng
 
     steps:
       - name: Checkout Repository
@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 1. Cơ chế lưu giữ thư mục plugins (Cache) để giữ nguyên plugin tự thêm
+      # 1. Lưu giữ Plugins để không bị mất khi tắt server
       - name: Cache Minecraft Plugins
         uses: actions/cache@v4
         with:
@@ -27,7 +27,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-minecraft-plugins-
 
-      # 2. Khởi tạo thư mục server & tải file server gốc nếu chưa có
+      # 2. LƯU GIỮ THẾ GIỚI (WORLD) ĐỂ KHÔNG BỊ MẤT MAP CŨ
+      - name: Cache Minecraft World
+        uses: actions/cache@v4
+        with:
+          path: |
+            server/world
+            server/world_nether
+            server/world_the_end
+          key: ${{ runner.os }}-minecraft-world-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-minecraft-world-
+
+      # 3. LƯU GIỮ CẤU HÌNH PLAYIT ĐỂ GIỮ NGUYÊN IP CŨ (KHÔNG CẦN CLAIM LẠI)
+      - name: Cache Playit Config
+        uses: actions/cache@v4
+        with:
+          path: server/playit.toml
+          key: ${{ runner.os }}-playit-config-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-playit-config-
+
+      # 4. Khởi tạo thư mục server & tải file server gốc nếu chưa có
       - name: Setup Server Files & Download Server
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
@@ -44,7 +65,7 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      # 3. Tải GeyserMC & Floodgate cho cross-play (chỉ tải nếu chưa có sẵn)
+      # 5. Tải GeyserMC & Floodgate cho cross-play (chỉ tải nếu chưa có sẵn)
       - name: Download Default Core Plugins (Geyser & Floodgate)
         run: |
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
@@ -60,7 +81,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      # 4. Chạy đồng thời Playit ngầm và Server Minecraft giữ tiến trình sống liên tục
+      # 6. Chạy Playit và Minecraft đồng thời (Tự động nhận diện cấu hình cũ nếu có)
       - name: Run Playit & Minecraft Server Together
         run: |
           cd server
@@ -69,29 +90,28 @@ jobs:
               Write-Output "Dang tai Playit.exe..."
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
-          
-          if (Test-Path "playit_out.txt") { Remove-Item "playit_out.txt" }
 
           Write-Output "========================================"
           Write-Output "KHOI DONG PLAYIT AGENT..."
           Write-Output "========================================"
 
-          # Khởi chạy Playit ngầm bằng Start-Process trong cùng một phiên làm việc
+          # Khởi chạy Playit (Nếu đã có file playit.toml từ lần trước, nó sẽ tự động kết nối luôn mà không cần claim lại)
           Start-Process -FilePath ".\playit.exe" -ArgumentList "--secret_path playit.toml" -RedirectStandardOutput "playit_out.txt" -RedirectStandardError "playit_err.txt"
           
-          # Đợi 8 giây để Playit kết nối mạng và tạo link claim
-          Start-Sleep -Seconds 8
+          Start-Sleep -Seconds 7
 
           if (Test-Path "playit_out.txt") {
-              Write-Output "========================================="
-              Write-Output "=== LINK CLAIM CUA PLAYIT (COPY VA DAN) ==="
-              Get-Content "playit_out.txt"
-              Write-Output "========================================="
+              Write-Output "=== LOG PLAYIT ==="
+              Get-Content "playit_out.txt" | Select-String "https://playit.gg/claim/" -Quiet
+              if ($?) {
+                  Get-Content "playit_out.txt"
+              } else {
+                  Write-Output "Playit da tu dong ket nối lai voi cau hinh cu thanh cong!"
+              }
           }
 
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
           Write-Output "========================================"
           
-          # Chạy Java ở foreground (giữ step này hoạt động liên tục, đồng thời giữ Playit luôn online)
           java -Xms2G -Xmx6G -jar server.jar nogui
