@@ -49,7 +49,7 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg Properly
+      - name: Run Playit.gg Persistently
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
@@ -57,25 +57,25 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
-          # Xóa file toml cũ nếu bị kẹt cấu hình
-          if (Test-Path "playit.toml") {
-              Remove-Item "playit.toml"
-          }
+          # Dọn dẹp config cũ để tạo mới hoàn toàn sạch sẽ
+          if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
 
           Write-Output "========================================"
-          Write-Output "KHOI DONG PLAYIT.GG..."
+          Write-Output "KHOI DONG PLAYIT.GG CHUAN KET NOI..."
           Write-Output "========================================"
           
-          # Chạy trực tiếp playit, không tạo file rỗng trước để nó tự sinh cấu hình kết nối chuẩn
-          Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit_log.txt" -RedirectStandardError "playit_err.txt" -PassThru
+          # Dùng lệnh Start-Job kết hợp vòng lặp duy trì để tiến trình playit luôn sống nhăn
+          $job = Start-Job -ScriptBlock {
+              Set-Location "server"
+              .\playit.exe
+          }
           
-          # Đợi 8 giây cho agent kết nối mạng
+          # Chờ 8 giây để agent khởi tạo và kết nối ra mạng công cộng
           Start-Sleep -Seconds 8
           
-          if (Test-Path "playit_log.txt") {
-              Write-Output "--- NOI DUNG LOG PLAYIT ---"
-              Get-Content "playit_log.txt" -Tail 25
-          }
+          # In trạng thái job và hướng dẫn lấy link
+          Write-Output "Trang thai Playit Job: $($job.State)"
+          Write-Output "Hay kiem tra log o buoc chay server hoac chay lai de nhan link claim moi nhat!"
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
