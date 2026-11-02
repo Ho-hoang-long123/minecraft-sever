@@ -34,19 +34,21 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      - name: Download GeyserMC & Floodgate
+      - name: Download GeyserMC & Floodgate (Fixed API)
         run: |
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           cd server/plugins
           
+          # Tải GeyserMC chuẩn endpoint mới
           if (!(Test-Path "Geyser-Spigot.jar")) {
               Write-Output "Dang tai GeyserMC..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
           }
 
+          # Tải Floodgate chuẩn endpoint mới (đã sửa đường dẫn project)
           if (!(Test-Path "floodgate.jar")) {
               Write-Output "Dang tai Floodgate..."
-              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgrade/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
+              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
       - name: Run Playit.gg & Get Setup Link
@@ -59,17 +61,13 @@ jobs:
           
           Write-Output "========================================"
           Write-Output "DANG KHOI DONG PLAYIT.GG..."
-          Write-Output "Hay kiem tra log ben duoi, no se hien ra 1 duong link dang: https://playit.gg/claim/..."
-          Write-Output "Copy link do dan vao trinh duyet de nhan domain/host cho server!"
+          Write-Output "Kiem tra log ben duoi de lay link claim: https://playit.gg/claim/..."
           Write-Output "========================================"
           
-          # Chạy trực tiếp playit trong 10 giây đầu hoặc chạy song song để nó nhả link claim ra màn hình log rồi mới bật server
           Start-Job -ScriptBlock {
               cd server
               .\playit.exe
           }
-          
-          # Đợi 10 giây để playit khởi tạo và in link ra log
           Start-Sleep -Seconds 10
 
       - name: Run Minecraft Server (Keep-Alive)
