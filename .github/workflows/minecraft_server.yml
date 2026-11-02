@@ -24,64 +24,67 @@ jobs:
           mkdir server/plugins
           cd server
           
-          # Tải PaperMC 1.20.4
-          Write-Output "Downloading PaperMC..."
+          # Tải PaperMC 1.20.4 (Bạn có thể đổi version nếu muốn)
+          Write-Output "Dang tai PaperMC..."
           Invoke-WebRequest -Uri "https://api.papermc.v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
           
-          # Tạo eula.txt nếu chưa có
+          # Tạo sẵn file eula.txt để server chấp nhận khởi động
           "eula=true" | Out-File -Encoding utf8 eula.txt
 
-      - name: Download Plugins (Vượt giới hạn dung lượng 25MB)
+      - name: Download Plugins & GeyserMC Automatically (Vuot qua gioi han 25MB)
         run: |
           cd server/plugins
           
-          # --- CÁCH 1: Tải trực tiếp các plugin nhẹ qua link tải trực tiếp (Direct Link) ---
-          # Ví dụ tải Floodgate và GeyserMC (để hỗ trợ Bedrock/Điện thoại vào chơi chung với PC)
-          Write-Output "Downloading Geyser & Floodgate for Cross-play..."
+          # 1. Tự động tải GeyserMC & Floodgate (Giúp điện thoại/Bedrock vào chung với PC Java)
+          Write-Output "Dang tai GeyserMC va Floodgate..."
           Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
           Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
 
-          # --- CÁCH 2: Nếu bạn có plugin nặng / plugin pack > 25MB lưu trên Google Drive / MediaFire ---
-          # Hãy thay link bên dưới thành link trực tiếp file .zip chứa toàn bộ plugin của bạn:
-          # Write-Output "Downloading heavy plugins pack..."
-          # Invoke-WebRequest -Uri "LINK_DIRECT_DOWNLOAD_FILE_ZIP_CUA_BAN" -OutFile "plugins.zip"
+          # 2. Tự động tải các plugin khác (Ví dụ EssentialsX quản lý lệnh)
+          Write-Output "Dang tai cac plugin khac..."
+          Invoke-WebRequest -Uri "https://github.com/EssentialsX/EssentialsX/releases/download/2.20.1/EssentialsX-2.20.1.jar" -OutFile "EssentialsX.jar"
+
+          # 3. [CÁCH THÊM PLUGIN CỦA BẠN HOẶC PLUGIN NẶNG > 25MB]:
+          # Nếu bạn có plugin tự viết hoặc file .zip chứa nhiều plugin nặng, hãy up lên Google Drive rồi dùng lệnh dưới:
+          # Write-Output "Dang tai plugin tu Google Drive..."
+          # Invoke-WebRequest -Uri "https://drive.google.com/uc?export=download&id=ID_GOOGLE_DRIVE_CUA_BAN" -OutFile "plugins.zip"
           # Expand-Archive -Path "plugins.zip" -DestinationPath "." -Force
           # Remove-Item "plugins.zip"
 
-      - name: Setup Playit.gg (Tạo Tunnel để lấy IP và Port không cần Port Forward)
+      - name: Setup Playit.gg (Tao Tunnel de lay IP va Port vao game)
         run: |
           cd server
-          Write-Output "Downloading Playit.gg..."
+          Write-Output "Dang tai Playit.gg..."
           Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           
-          # Chạy ngầm playit.exe
+          # Chạy ngầm playit
           Start-Process -FilePath ".\playit.exe"
 
-      - name: Start Minecraft Server & Keep-Alive Loop (Chống Idle & Tự khởi động lại khi crash)
+      - name: Start Minecraft Server & Keep-Alive Loop (Chong Idle & Tu khoi dong lai khi crash)
         run: |
           cd server
           
-          # Hàm khởi động server
+          # Hàm bật server
           function Start-MCServer {
               return Start-Job -ScriptBlock {
                   java -Xms2G -Xmx6G -jar server.jar nogui
               }
           }
 
-          Write-Output "Starting Minecraft Server..."
+          Write-Output "Khoi dong Minecraft Server..."
           $serverJob = Start-MCServer
 
-          # Vòng lặp giữ kết nối vô cực (Chạy liên tục, cứ 5 phút in log 1 lần để GitHub không ngắt kết nối do rỗi)
+          # Vòng lặp giữ kết nối vô cực (Cứ 5 phút in log 1 lần để chống GitHub ngắt kết nối do rỗi)
           $counter = 1
           while ($true) {
               Start-Sleep -Seconds 300
               $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-              Write-Output "[$time] Keep-Alive check #$counter: Server is active."
+              Write-Output "[$time] Keep-Alive check #$counter: Server dang hoat dong tot."
               
-              # Kiểm tra xem tiến trình server có còn sống không, nếu sập/dừng thì bật lại tự động
+              # Kiểm tra xem server có bị sập/dừng không, nếu có thì tự động bật lại
               $jobState = (Get-Job -Id $serverJob.Id).State
               if ($jobState -ne 'Running') {
-                  Write-Output "[$time] WARNING: Server stopped or crashed! Restarting..."
+                  Write-Output "[$time] CANH BAO: Server da dung hoac crash! Dang khoi dong lai..."
                   Remove-Job $serverJob -Force
                   $serverJob = Start-MCServer
               }
