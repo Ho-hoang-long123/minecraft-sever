@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Chạy tối đa 6 tiếng mỗi lần (giới hạn của GitHub)
+    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub
 
     steps:
       - name: Checkout Repository
@@ -20,74 +20,50 @@ jobs:
 
       - name: Setup Server Files & Download PaperMC
         run: |
-          mkdir server
-          mkdir server/plugins
+          if (!(Test-Path "server")) { mkdir server }
+          if (!(Test-Path "server/plugins")) { mkdir server/plugins }
+          
           cd server
           
-          # Tải PaperMC 1.20.4 (Bạn có thể đổi version nếu muốn)
-          Write-Output "Dang tai PaperMC..."
-          Invoke-WebRequest -Uri "https://api.papermc.v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
+          if (!(Test-Path "server.jar")) {
+              Write-Output "Dang tai PaperMC..."
+              Invoke-WebRequest -Uri "https://api.papermc.v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar" -OutFile "server.jar"
+          }
           
-          # Tạo sẵn file eula.txt để server chấp nhận khởi động
-          "eula=true" | Out-File -Encoding utf8 eula.txt
+          if (!(Test-Path "eula.txt")) {
+              "eula=true" | Out-File -Encoding utf8 eula.txt
+          }
 
-      - name: Download Plugins & GeyserMC Automatically (Vuot qua gioi han 25MB)
+      - name: Download Plugins & GeyserMC
         run: |
           cd server/plugins
           
-          # 1. Tự động tải GeyserMC & Floodgate (Giúp điện thoại/Bedrock vào chung với PC Java)
-          Write-Output "Dang tai GeyserMC va Floodgate..."
-          Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
-          Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
+          if (!(Test-Path "Geyser-Spigot.jar")) {
+              Write-Output "Dang tai GeyserMC va Floodgate..."
+              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
+              Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
+          }
 
-          # 2. Tự động tải các plugin khác (Ví dụ EssentialsX quản lý lệnh)
-          Write-Output "Dang tai cac plugin khac..."
-          Invoke-WebRequest -Uri "https://github.com/EssentialsX/EssentialsX/releases/download/2.20.1/EssentialsX-2.20.1.jar" -OutFile "EssentialsX.jar"
+          if (!(Test-Path "EssentialsX.jar")) {
+              Write-Output "Dang tai EssentialsX..."
+              Invoke-WebRequest -Uri "https://github.com/EssentialsX/EssentialsX/releases/download/2.20.1/EssentialsX-2.20.1.jar" -OutFile "EssentialsX.jar"
+          }
 
-          # 3. [CÁCH THÊM PLUGIN CỦA BẠN HOẶC PLUGIN NẶNG > 25MB]:
-          # Nếu bạn có plugin tự viết hoặc file .zip chứa nhiều plugin nặng, hãy up lên Google Drive rồi dùng lệnh dưới:
-          # Write-Output "Dang tai plugin tu Google Drive..."
-          # Invoke-WebRequest -Uri "https://drive.google.com/uc?export=download&id=ID_GOOGLE_DRIVE_CUA_BAN" -OutFile "plugins.zip"
-          # Expand-Archive -Path "plugins.zip" -DestinationPath "." -Force
-          # Remove-Item "plugins.zip"
-
-      - name: Setup Playit.gg (Tao Tunnel de lay IP va Port vao game)
+      - name: Setup Playit.gg Tunnel
         run: |
           cd server
-          Write-Output "Dang tai Playit.gg..."
-          Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
-          
-          # Chạy ngầm playit
+          if (!(Test-Path "playit.exe")) {
+              Write-Output "Dang tai Playit.gg..."
+              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
+          }
+          # Bật playit ngầm để lấy port
           Start-Process -FilePath ".\playit.exe"
 
-      - name: Start Minecraft Server & Keep-Alive Loop (Chong Idle & Tu khoi dong lai khi crash)
+      - name: Run Minecraft Server (Blocking Execution - Keep Active)
         run: |
           cd server
+          Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
           
-          # Hàm bật server
-          function Start-MCServer {
-              return Start-Job -ScriptBlock {
-                  java -Xms2G -Xmx6G -jar server.jar nogui
-              }
-          }
-
-          Write-Output "Khoi dong Minecraft Server..."
-          $serverJob = Start-MCServer
-
-          # Vòng lặp giữ kết nối vô cực (Cứ 5 phút in log 1 lần để chống GitHub ngắt kết nối do rỗi)
-          $counter = 1
-          while ($true) {
-              Start-Sleep -Seconds 300
-              $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-              Write-Output "[$time] Keep-Alive check #$counter: Server dang hoat dong tot."
-              
-              # Kiểm tra xem server có bị sập/dừng không, nếu có thì tự động bật lại
-              $jobState = (Get-Job -Id $serverJob.Id).State
-              if ($jobState -ne 'Running') {
-                  Write-Output "[$time] CANH BAO: Server da dung hoac crash! Dang khoi dong lai..."
-                  Remove-Job $serverJob -Force
-                  $serverJob = Start-MCServer
-              }
-              
-              $counter++
-          }
+          # Chạy Java trực tiếp (Foreground Mode). 
+          # GitHub Actions SẼ BỊ TREO TẠI ĐÂY để giữ server chạy, không thể Complete Job được!
+          java -Xms2G -Xmx6G -jar server.jar nogui
