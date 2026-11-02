@@ -6,14 +6,14 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng
+    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Java (JDK 17)
-        uses: setup-java@v4
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -30,7 +30,7 @@ jobs:
       - name: Setup Server Files & Download Server
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
-          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
+          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server" -Force }
           
           cd server
           
