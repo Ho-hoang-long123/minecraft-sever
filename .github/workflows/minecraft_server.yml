@@ -4,53 +4,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup_tunnel:
-    runs-on: windows-2022
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Server Directory & Download Playit
-        run: |
-          if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
-          cd server
-          
-          if (!(Test-Path "playit.exe")) {
-              Write-Output "Dang tai Playit.exe..."
-              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
-          }
-          
-          # Xóa log cũ nếu có
-          if (Test-Path "playit.log") { Remove-Item "playit.log" }
-
-      - name: Run Playit & Show Claim Link
-        run: |
-          cd server
-          Write-Output "========================================"
-          Write-Output "DANG KHOI DONG PLAYIT DE LAY LINK CLAIM..."
-          Write-Output "========================================"
-          
-          # Chạy playit ngầm và hứng toàn bộ log vào file playit.log
-          Start-Process -FilePath ".\playit.exe" -RedirectStandardOutput "playit.log" -RedirectStandardError "playit_err.log" -PassThru
-          
-          # Đợi 10 giây để playit kết nối mạng và sinh link
-          Start-Sleep -Seconds 10
-          
-          Write-Output "----------------------------------------"
-          Write-Output "HAM GIA: LINK CLAIM PLAYIT CUA M DAY:"
-          Write-Output "----------------------------------------"
-          
-          if (Test-Path "playit.log") {
-              Get-Content "playit.log"
-          }
-          if (Test-Path "playit_err.log") {
-              Get-Content "playit_err.log"
-          }
-
-  run_minecraft:
+  build:
     runs-on: windows-2022
     timeout-minutes: 360
-    needs: setup_tunnel # Chạy sau khi job lấy link đã hoàn tất
 
     steps:
       - name: Checkout Repository
@@ -62,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Server Files & Plugins
+      - name: Setup Server Files & Download Server
         run: |
           if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
@@ -77,9 +33,12 @@ jobs:
           if (!(Test-Path "eula.txt")) {
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
+
+      - name: Download GeyserMC & Floodgate
+        run: |
+          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
+          cd server/plugins
           
-          # Tải Geyser & Floodgate vào plugins
-          cd plugins
           if (!(Test-Path "Geyser-Spigot.jar")) {
               Write-Output "Dang tai GeyserMC..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
@@ -90,7 +49,34 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Minecraft Server (Keep-Alive)
+      - name: Run Playit.gg Safely
+        run: |
+          cd server
+          if (!(Test-Path "playit.exe")) {
+              Write-Output "Dang tai Playit.exe..."
+              Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
+          }
+          
+          # Dọn dẹp file cũ để tạo mới hoàn toàn
+          if (Test-Path "playit.toml") { Remove-Item "playit.toml" }
+
+          Write-Output "========================================"
+          Write-Output "KHOI DONG VA GIU TRANG THAI PLAYIT..."
+          Write-Output "========================================"
+          
+          # Sử dụng Job nền chuẩn của PowerShell kết hợp giữ tiến trình không bị tắt ngóm
+          $job = Start-Job -ScriptBlock {
+              Set-Location "D:\a\minecraft-sever\minecraft-sever\server"
+              .\playit.exe
+          }
+          
+          # Đợi 8 giây để agent khởi tạo kết nối thông suốt với server của Playit
+          Start-Sleep -Seconds 8
+          
+          # In ra thông tin trạng thái job
+          Get-Job
+
+      - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
           cd server
           Write-Output "========================================"
