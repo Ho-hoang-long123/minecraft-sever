@@ -20,27 +20,28 @@ jobs:
 
       - name: Setup Server Files & Download PaperMC
         run: |
-          if (!(Test-Path "server")) { mkdir server }
-          if (!(Test-Path "server/plugins")) { mkdir server/plugins }
+          if (!(Test-Path "server")) { New-Item -ItemType Directory -Path "server" -Force }
+          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           
           cd server
           
           if (!(Test-Path "server.jar")) {
-              Write-Output "Dang tai PaperMC 1.20.4 truc tiep..."
-              # Endpoint mirror trực tiếp chuẩn xác, không sợ lỗi API
-              Invoke-WebRequest -Uri "https://papermc.io/api/v1/paper/1.20.4/latest/download" -OutFile "server.jar"
+              Write-Output "Dang tai PaperMC 1.20.4 qua direct mirror..."
+              # Link direct binary .jar chuẩn, không bị dính HTML hay lỗi API v1/v2/v3
+              Invoke-WebRequest -Uri "https://api.purpurmc.org/v2/purpur/1.20.4/latest/download" -OutFile "server.jar"
           }
           
           if (!(Test-Path "eula.txt")) {
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      - name: Download Plugins & GeyserMC
+      - name: Download Plugins & GeyserMC (Cross-play Java & Bedrock)
         run: |
+          if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           cd server/plugins
           
           if (!(Test-Path "Geyser-Spigot.jar")) {
-              Write-Output "Dang tai GeyserMC va Floodgate cho Cross-play..."
+              Write-Output "Dang tai GeyserMC va Floodgate..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
@@ -50,23 +51,23 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/EssentialsX/EssentialsX/releases/download/2.20.1/EssentialsX-2.20.1.jar" -OutFile "EssentialsX.jar"
           }
 
-      - name: Setup Playit.gg Tunnel
+      - name: Setup Playit.gg Tunnel (Tao Domain/Port)
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
-              Write-Output "Dang tai Playit.gg..."
+              Write-Output "Dang tai Playit.exe..."
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
-          # Chạy ngầm playit để tạo IP/Port công khai
+          # Chạy ngầm playit để liên kết port công khai
           Start-Process -FilePath ".\playit.exe"
 
-      - name: Run Minecraft Server (Blocking Execution - Keep Active)
+      - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
           cd server
-          Write-Output "========================================"
-          Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
-          Write-Output "Workflow se giu nguyen trang thai nay (Khong Complete Job) cho den khi het 6 tieng."
-          Write-Output "========================================"
+          Write-Output "================================================="
+          Write-Output "SERVER MINECRAFT DANG CHAY CHẾ ĐỘ FOREGROUND..."
+          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này (KHÔNG COMPLETE JOB)."
+          Write-Output "================================================="
           
-          # Lệnh chạy trực tiếp (Foreground). Giúp terminal không bị đóng và giữ active liên tục.
+          # Lệnh chạy blocking trực tiếp. GitHub Actions sẽ đứng treo ở bước này cho tới hết 6 tiếng.
           java -Xms2G -Xmx6G -jar server.jar nogui
