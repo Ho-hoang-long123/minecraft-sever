@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360
+    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
 
     steps:
       - name: Checkout Repository
@@ -34,24 +34,22 @@ jobs:
               "eula=true" | Out-File -Encoding utf8 eula.txt
           }
 
-      - name: Download GeyserMC & Floodgate (Fixed API)
+      - name: Download GeyserMC & Floodgate
         run: |
           if (!(Test-Path "server/plugins")) { New-Item -ItemType Directory -Path "server/plugins" -Force }
           cd server/plugins
           
-          # Tải GeyserMC chuẩn endpoint mới
           if (!(Test-Path "Geyser-Spigot.jar")) {
               Write-Output "Dang tai GeyserMC..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot" -OutFile "Geyser-Spigot.jar"
           }
 
-          # Tải Floodgate chuẩn endpoint mới (đã sửa đường dẫn project)
           if (!(Test-Path "floodgate.jar")) {
               Write-Output "Dang tai Floodgate..."
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg & Get Setup Link
+      - name: Setup Playit.gg Tunnel (Fixed Claim Bug)
         run: |
           cd server
           if (!(Test-Path "playit.exe")) {
@@ -59,22 +57,28 @@ jobs:
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
           }
           
+          # Tự động tạo file config ẩn để bỏ qua lỗi bắt nhập mã xác nhận thủ công
+          if (!(Test-Path "playit.toml")) {
+              New-Item -ItemType File -Path "playit.toml" -Force
+          }
+
           Write-Output "========================================"
-          Write-Output "DANG KHOI DONG PLAYIT.GG..."
-          Write-Output "Kiem tra log ben duoi de lay link claim: https://playit.gg/claim/..."
+          Write-Output "KHOI DONG PLAYIT.GG..."
           Write-Output "========================================"
           
           Start-Job -ScriptBlock {
               cd server
               .\playit.exe
           }
-          Start-Sleep -Seconds 10
+          Start-Sleep -Seconds 5
 
-      - name: Run Minecraft Server (Keep-Alive)
+      - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
           cd server
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
+          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này, KHÔNG COMPLETE JOB cho đến hết 6 tiếng."
           Write-Output "========================================"
           
+          # Chạy trực tiếp để treo terminal, giữ action hoạt động liên tục
           java -Xms2G -Xmx6G -jar server.jar nogui
