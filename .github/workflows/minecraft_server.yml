@@ -49,10 +49,10 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg (Fixed Working Directory)
+      - name: Run Playit.gg (Fixed Path)
         run: |
-          # Đảm bảo chuyển hẳn vào thư mục server trước khi tải và chạy
-          Set-Location -Path "$PSScriptRoot/server"
+          # Dùng đường dẫn tương đối trực tiếp vào thư mục server
+          cd server
           
           if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
@@ -65,7 +65,6 @@ jobs:
           Write-Output "KHOI DONG PLAYIT TRUC TIEP..."
           Write-Output "========================================"
 
-          # Khởi chạy playit với đúng đường dẫn tuyệt đối
           $exePath = Join-Path (Get-Location) "playit.exe"
           $processInfo = New-Object System.Diagnostics.ProcessStartInfo
           $processInfo.FileName = $exePath
@@ -88,7 +87,7 @@ jobs:
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
-          Set-Location -Path "server"
+          cd server
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
           Write-Output "========================================"
