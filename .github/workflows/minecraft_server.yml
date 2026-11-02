@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 360 # Giới hạn tối đa 6 tiếng của GitHub Actions
+    timeout-minutes: 360
 
     steps:
       - name: Checkout Repository
@@ -49,9 +49,11 @@ jobs:
               Invoke-WebRequest -Uri "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot" -OutFile "floodgate.jar"
           }
 
-      - name: Run Playit.gg (Direct Connection Mode)
+      - name: Run Playit.gg (Fixed Working Directory)
         run: |
-          cd server
+          # Đảm bảo chuyển hẳn vào thư mục server trước khi tải và chạy
+          Set-Location -Path "$PSScriptRoot/server"
+          
           if (!(Test-Path "playit.exe")) {
               Write-Output "Dang tai Playit.exe..."
               Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64.exe" -OutFile "playit.exe"
@@ -63,9 +65,11 @@ jobs:
           Write-Output "KHOI DONG PLAYIT TRUC TIEP..."
           Write-Output "========================================"
 
-          # Sử dụng ProcessStartInfo để ép Playit kết nối thông suốt không bị đơ
+          # Khởi chạy playit với đúng đường dẫn tuyệt đối
+          $exePath = Join-Path (Get-Location) "playit.exe"
           $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-          $processInfo.FileName = ".\playit.exe"
+          $processInfo.FileName = $exePath
+          $processInfo.WorkingDirectory = (Get-Location)
           $processInfo.UseShellExecute = $false
           $processInfo.RedirectStandardOutput = $true
           $processInfo.RedirectStandardError = $true
@@ -84,11 +88,9 @@ jobs:
 
       - name: Run Minecraft Server (Keep-Alive - Blocking Execution)
         run: |
-          cd server
+          Set-Location -Path "server"
           Write-Output "========================================"
           Write-Output "BAT DAU CHAY SERVER MINECRAFT..."
-          Write-Output "Workflow se GIỮ NGUYÊN trạng thái này, KHÔNG COMPLETE JOB cho đến hết 6 tiếng."
           Write-Output "========================================"
           
-          # Chạy trực tiếp foreground để giữ action hoạt động liên tục
           java -Xms2G -Xmx6G -jar server.jar nogui
